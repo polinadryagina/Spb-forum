@@ -20,7 +20,7 @@ def main(district_nm, district_cd):
     district_name = district_nm
     district_code = district_cd
     db_session.global_init("db/blogs.db")
-    app.run(host='localhost', port=5000)
+    app.run(host='0.0.0.0', port=5000)
 
 
 @app.route("/")
@@ -28,7 +28,7 @@ def index():
     posts = 'Добро пожаловать в {}!'.format(district_name)
     db_sess = db_session.create_session()
     if current_user.is_authenticated:
-        posts = 'Мои записи в блоге'
+        posts = 'Записи в блоге "{}"'.format(district_name)
         news = db_sess.query(News).filter(
             ((News.user == current_user) | (News.is_private != True)) & (News.district == district_code))
     else:
@@ -194,6 +194,20 @@ def publish(id):
     return redirect("/")
 
 
+def shutdown_server():
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is None:
+        raise RuntimeError('Not running with the Werkzeug Server')
+    func()
+
+
+@app.route('/shutdown', methods=['GET'])
+def shutdown():
+    shutdown_server()
+    return 'Server shutting down...'
+
+
 if __name__ == '__main__':
+    # main('центральный район Санкт-Петербурга','central')
     main('невский район Санкт-Петербурга', 'neva')
     main('кронштадтский район Санкт-Петербурга', 'kronshtadt')

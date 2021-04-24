@@ -7,7 +7,6 @@ import district
 import webbrowser
 
 
-# координаты центра карты и размер
 class MapParams(object):
     def __init__(self):
         self.lat = 59.965278
@@ -34,7 +33,6 @@ class MapParams(object):
             self.lat -= my_step * math.pow(2, 15 - self.zoom)
 
 
-# загружаем яндекс карты
 def load_map(mp):
     map_request = "http://static-maps.yandex.ru/1.x/?ll={ll}&z={z}&l={type}".format(ll=mp.coords(), z=mp.zoom,
                                                                                     type=mp.type)
@@ -55,29 +53,47 @@ def load_map(mp):
     return map_file
 
 
-# соединение карты и сайта
-def finalize(district_caption=None, district_name=None, *, map_file):
-    pygame.quit()
-    os.remove(map_file)
-
-    webbrowser.open('http://localhost:5000')  # FIXME: this only works due to natural delay when opening the page
-    if district_caption and district_name:
-        district.main(district_caption, district_name)
-
-
 def main():
-    pygame.init()
-    screen = pygame.display.set_mode((600, 450))
+    initialized = False
+    screen = None
     mp = MapParams()
     map_file = load_map(mp)
     markers_list = []
+
+    def init_pygame():
+        nonlocal initialized
+        nonlocal screen
+        nonlocal map_file
+
+        pygame.init()
+        screen = pygame.display.set_mode((600, 450))
+        map_file = load_map(mp)
+        markers_list.clear()
+
+        initialized = True
+
+    def finalize(district_caption=None, district_name=None, *, map_file):
+        nonlocal initialized
+
+        pygame.quit()
+        os.remove(map_file)
+
+        webbrowser.open('http://localhost:5000')  # FIXME: this only works due to natural delay when opening the page
+        if district_caption and district_name:
+            district.main(district_caption, district_name)
+
+        initialized = False
+
     while True:
+        if not initialized:
+            init_pygame()
+            pygame.display.set_caption('Выберите район')
+
         event = pygame.event.wait()
         cursor = pygame.mouse.get_pos()
         if event.type == pygame.MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[0]:
             print('you clicked {}'.format(cursor))
             markers_list.append(cursor)
-            # деление карты на области
         if 225 < cursor[0] and cursor[0] < 420 and 188 < cursor[1] and cursor[1] < 340:
             if event.type == pygame.MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[0]:
                 finalize('невский район Санкт-Петербурга', 'neva', map_file=map_file)
@@ -121,12 +137,14 @@ def main():
             break
         elif event.type == pygame.KEYUP:
             mp.update(event)
-        image = pygame.image.load(map_file)
 
-        screen.blit(image, (0, 0))
-        for m in markers_list:
-            pygame.draw.circle(screen, (0, 0, 255), m, 3, 1)
-        pygame.display.flip()
+        if initialized:
+            image = pygame.image.load(map_file)
+            screen.blit(image, (0, 0))
+            for m in markers_list:
+                pygame.draw.circle(screen, (0, 0, 255), m, 3, 1)
+            pygame.display.flip()
+
     finalize(map_file=map_file)
 
 
